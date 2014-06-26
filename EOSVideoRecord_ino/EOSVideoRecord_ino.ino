@@ -6,6 +6,7 @@
 MeetAndroid meetAndroid;
 int inPin = 3;
 int val =0 ;
+uint32_t KeepAlive_time =0; 
 
 class CamStateHandlers : public PTPStateHandlers
 {
@@ -81,14 +82,24 @@ void loop()
     //val = digitalRead(inPin);
     //Serial.println(val);
     //delay (100);
+    
+    //Enable BT
     meetAndroid.receive();
     
-    //if (0)
+    if (millis()-KeepAlive_time > 1000)
+    {
+     meetAndroid.send("keepAlive");
+     KeepAlive_time = millis();
+    Serial.println(KeepAlive_time); 
+    }
+    
+    //from serial monitor
     if (Serial.available()>0)
     {
       switch (Serial.read())
       {
       case 'A':
+        Serial.println("AAAA");
         Capture(0,0); 
         break; 
       
