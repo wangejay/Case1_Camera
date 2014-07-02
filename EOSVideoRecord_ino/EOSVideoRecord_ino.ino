@@ -3,9 +3,13 @@
 #include <ptp.h>
 #include <canoneos.h>
 #include <MeetAndroid.h>
+#include <EEPROM.h>
+
 MeetAndroid meetAndroid;
-int inPin = 3;
+//int inPin = 3;
+int testPin = 7; 
 int val =0 ;
+int device_number=0; 
 uint32_t KeepAlive_time =0; 
 
 class CamStateHandlers : public PTPStateHandlers
@@ -34,32 +38,20 @@ void CamStateHandlers::OnDeviceDisconnectedState(PTP *ptp)
 
 void CamStateHandlers::OnDeviceInitializedState(PTP *ptp)
 {
-    static uint32_t next_time = 0;
-
+    
     if (!stateConnected)
         stateConnected = true;
-
-    uint32_t  time_now = millis();
-    
-    //Serial.begin(9600); 
-    /*
-    if (time_now > next_time)
-    {
-        next_time = time_now + 5000;
-
-        uint16_t rc = Eos.Capture();
-
-        if (rc != PTP_RC_OK)
-            ErrorMessage<uint16_t>("Error", rc);
-    }
-    */
     
 }
 
 void setup()
 {
     Serial.begin(9600);
-    Serial.println("Start");
+    Serial.print("Start");
+    device_number = EEPROM.read(4);
+    Serial.print("\t");
+    Serial.print(device_number);
+    Serial.println();
     if (Usb.Init() == -1)
         Serial.println("OSC did not start.");
 
@@ -69,8 +61,11 @@ void setup()
     meetAndroid.registerFunction(SwitchLiveViewOn,   'B');  
     meetAndroid.registerFunction(SwitchLiveViewOff,  'C');   
     meetAndroid.registerFunction(VideoRecord,   'D');   
-    meetAndroid.registerFunction(VideoRecordStop,   'E');   
-    pinMode(inPin, INPUT);      // sets the digital pin 7 as input
+    meetAndroid.registerFunction(VideoRecordStop,   'E'); 
+    meetAndroid.registerFunction(USB_init,   'I'); 
+    
+    //pinMode(inPin, INPUT);      // sets the digital pin 7 as input
+    pinMode(testPin, OUTPUT);      // sets the digital pin 7 as input
     delay( 200 );
 }
 
@@ -82,15 +77,18 @@ void loop()
     //val = digitalRead(inPin);
     //Serial.println(val);
     //delay (100);
-    
     //Enable BT
     meetAndroid.receive();
     
     if (millis()-KeepAlive_time > 1000)
     {
+     
+     //meetAndroid.send(device_number);
+     //Serial.println("\t");
      meetAndroid.send("keepAlive");
      KeepAlive_time = millis();
-    Serial.println(KeepAlive_time); 
+     //Serial.println();
+     //Serial.println(KeepAlive_time); 
     }
     
     //from serial monitor
@@ -99,7 +97,7 @@ void loop()
       switch (Serial.read())
       {
       case 'A':
-        Serial.println("AAAA");
+        Serial.println("A");
         Capture(0,0); 
         break; 
       
@@ -126,24 +124,43 @@ void loop()
 void Capture (byte flag, byte numOfValues)
 {
   Eos.Capture();
+  digitalWrite(testPin,HIGH); 
+  delay (100);
+  digitalWrite(testPin,LOW); 
+  meetAndroid.send("A OK");  
 }
 
 void SwitchLiveViewOn (byte flag, byte numOfValues)
 {
   Eos.SwitchLiveView(1);
+  meetAndroid.send("B OK");
 }
-
+  
 void SwitchLiveViewOff (byte flag, byte numOfValues)
 {
   Eos.SwitchLiveView(0);
+  if (Usb.Init() == -1)
+        Serial.println("OSC did not start.");
+  meetAndroid.send("B OK");
 }
 
 void VideoRecord (byte flag, byte numOfValues)
 {
   Eos.VideoRecord();
+  digitalWrite(testPin,HIGH);
+  meetAndroid.send("D OK");
 }
 
 void VideoRecordStop (byte flag, byte numOfValues)
 {
   Eos.VideoRecordStop();
+  digitalWrite(testPin,LOW);
+  meetAndroid.send("E OK");
+}
+
+void USB_init (byte flag, byte numOfValues)
+{
+  if (Usb.Init() == -1)
+        Serial.println("OSC did not start.");
+  meetAndroid.send("I OK");
 }
