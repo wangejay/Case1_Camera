@@ -10,7 +10,9 @@ MeetAndroid meetAndroid;
 int testPin = 7; 
 int val =0 ;
 int device_number=0; 
-uint32_t KeepAlive_time =0; 
+PTPReadParser *parser;
+
+uint32_t KeepAlive_time =0;
 
 class CamStateHandlers : public PTPStateHandlers
 {
@@ -20,7 +22,7 @@ public:
       CamStateHandlers() : stateConnected(false) {};
 
       virtual void OnDeviceDisconnectedState(PTP *ptp);
-      virtual void OnDeviceInitializedState(PTP *ptp);
+      virtual void OnDeviceInitializedState(PTP *ptp);        
 } CamStates;
 
 USB         Usb;
@@ -44,17 +46,23 @@ void CamStateHandlers::OnDeviceInitializedState(PTP *ptp)
     
 }
 
+void(* resetFunc) (void) = 0; //reset funciton
+
 void setup()
 {
     Serial.begin(9600);
-    Serial.print("Start");
+    Serial.print("Start V1.1");
     device_number = EEPROM.read(4);
     Serial.print("\t");
     Serial.print(device_number);
     Serial.println();
+    
+    Serial.println("INIT START");
     if (Usb.Init() == -1)
         Serial.println("OSC did not start.");
 
+    Serial.println("INIT END");
+    
     //Serial.begin(9600); 
     // register callback functions, which will be called when an associated event occurs.
     meetAndroid.registerFunction(Capture,     'A');
@@ -80,7 +88,7 @@ void loop()
     //Enable BT
     meetAndroid.receive();
     
-    if (millis()-KeepAlive_time > 1000)
+    if (millis()-KeepAlive_time > 10000)
     {
      
      //meetAndroid.send(device_number);
@@ -88,7 +96,8 @@ void loop()
      meetAndroid.send("keepAlive");
      KeepAlive_time = millis();
      //Serial.println();
-     //Serial.println(KeepAlive_time); 
+     //Serial.println(KeepAlive_time);
+     Eos.GetDeviceInfoEx(parser);
     }
     
     //from serial monitor
@@ -123,7 +132,12 @@ void loop()
 
 void Capture (byte flag, byte numOfValues)
 {
-  Eos.Capture();
+  uint16_t rc = Eos.Capture();
+  if (rc != PTP_RC_OK)
+     {
+     Serial.println("Arduino reset");  
+     resetFunc(); //call reset 
+     }
   digitalWrite(testPin,HIGH); 
   delay (100);
   digitalWrite(testPin,LOW); 
